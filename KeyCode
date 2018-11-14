@@ -1,0 +1,64 @@
+Path=uigetdir();%获取当前文件夹的路径名
+string=sprintf('%s%s',Path,'\*.txt');%连接字符串 *.txt限定了文件的类型。
+
+filename=ls(string)%读取当前文件夹下所有txt文件，变量filename为矩阵
+%{
+举例   filename =
+                20181022-75W85-1.txt
+                20181022-75W85-2.txt
+                20181022-75W85-3.txt
+                20181022-75W85-4.txt
+                20181022-75W85-5.txt
+                20181026-75W90-2.txt
+                20181026-75W90.txt 
+%}
+
+[h,z]=size(filename)%变量h存储txt文件个数，用于后续的循环
+
+
+for k=1:h%变量k用来实现依次读取一个文件。并进行循环内的处理
+    Img=sprintf('%s\\%s',Path,filename(k,:));%变量filename的单独一行是文件名
+    a= textread(Img,'','headerlines',10);%读取单个文件里的数据，且忽略掉前10行（目的：排除前几行的字符串）
+    
+    %输入转速和输出扭矩的矩阵，不同的工况点需要修改这两个向量
+    global n T
+    n=[25,50,75,100,125,150,175,200,225,250,275,300,325,350,375,400,425,450,475,500];
+    T=[500,1000,1300,1500,1800,2000,2300,2500,2800,3000,3500,4000,4500,5000,5500,6000,6500,7000,7500,8000,8500,9000,9500,10000,11000,12000,13000,14000,15000,18000,20000,24000,27000,30000];
+    
+%     Path1=strcat(Path,'\各工况的导出数据')%用于单独查看变量
+%     mkdir(Path1);%用于单独查看变量
+    
+    for i=1:20;
+        for j=1:34;
+            %变量i、j用于寻找单独一个工况点
+            temp1=a(ismember(a(:,4),n(i)),:);%提取第四列-输出扭矩
+            temp2=temp1((abs(temp1(:,6)-T(j))<=10),:);%输出扭矩波动要小于10
+            
+           % str=sprintf('%d&%d.txt',n(i),T(j));%用于单独查看变量
+           
+            temp2((temp2(:,2)>100),:)=[];%大于100的效率值剔除
+            if ~isempty(temp2)
+                
+                Q=temp2(:,2);
+                %统计学：按正态分布去除边缘数据
+                yichang=abs(Q-mean(Q))>3*std(Q);
+                Q(yichang)=[];
+                
+                b=mean(Q);
+                W(j,i)=b;%变量W存储了效率表
+                
+                %STRING=sprintf('%s\\%s',Path1,str);
+                %dlmwrite(STRING,temp2);
+            end
+        end
+    end
+    
+   global Path2
+new=Img(1:end-4);
+Path2=strcat(new,'效率表.xls');
+W(W==0) = nan;
+xlswrite(Path2,W,'sheet1','B3');
+xlswrite(Path2,n,'sheet1','B2');
+xlswrite(Path2,T','sheet1','A3');
+xlswrite(Path2,{'输出转速'},'sheet1','B1');
+xlswrite(Path2,{'输出转矩'},'sheet1','A2'); 
